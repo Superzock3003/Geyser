@@ -91,6 +91,9 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.value.qual.IntRange;
+import org.geysermc.api.util.BedrockPlatform;
+import org.geysermc.api.util.InputMode;
+import org.geysermc.api.util.UiProfile;
 import org.geysermc.common.PlatformType;
 import org.geysermc.cumulus.form.Form;
 import org.geysermc.cumulus.form.util.FormBuilder;
@@ -126,9 +129,9 @@ import org.geysermc.geyser.session.auth.AuthData;
 import org.geysermc.geyser.session.auth.BedrockClientData;
 import org.geysermc.geyser.session.cache.*;
 import org.geysermc.geyser.skin.FloodgateSkinUploader;
-import org.geysermc.geyser.text.ChatTypeEntry;
 import org.geysermc.geyser.text.GeyserLocale;
 import org.geysermc.geyser.text.MinecraftLocale;
+import org.geysermc.geyser.text.TextDecoration;
 import org.geysermc.geyser.translator.inventory.InventoryTranslator;
 import org.geysermc.geyser.translator.text.MessageTranslator;
 import org.geysermc.geyser.util.ChunkUtils;
@@ -136,7 +139,6 @@ import org.geysermc.geyser.util.DimensionUtils;
 import org.geysermc.geyser.util.LoginEncryptionUtils;
 import org.geysermc.geyser.util.MathUtils;
 
-import javax.annotation.Nonnull;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -151,13 +153,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Getter
 public class GeyserSession implements GeyserConnection, GeyserCommandSource {
 
-    private final @Nonnull GeyserImpl geyser;
-    private final @Nonnull UpstreamSession upstream;
+    private final @NonNull GeyserImpl geyser;
+    private final @NonNull UpstreamSession upstream;
     /**
      * The loop where all packets and ticking is processed to prevent concurrency issues.
      * If this is manually called, ensure that any exceptions are properly handled.
      */
-    private final @Nonnull EventLoop eventLoop;
+    private final @NonNull EventLoop eventLoop;
     private TcpSession downstream;
     @Setter
     private AuthData authData;
@@ -339,7 +341,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
      */
     private final Map<String, JavaDimension> dimensions = new Object2ObjectOpenHashMap<>(3);
 
-    private final Int2ObjectMap<ChatTypeEntry> chatTypes = new Int2ObjectOpenHashMap<>(8);
+    private final Int2ObjectMap<TextDecoration> chatTypes = new Int2ObjectOpenHashMap<>(7);
 
     @Setter
     private int breakingBlock;
@@ -562,8 +564,6 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
         this.playerEntity = new SessionPlayerEntity(this);
         collisionManager.updatePlayerBoundingBox(this.playerEntity.getPosition());
 
-        ChatTypeEntry.applyDefaults(chatTypes);
-
         this.playerInventory = new PlayerInventory();
         this.openInventory = null;
         this.craftingRecipes = new Int2ObjectOpenHashMap<>();
@@ -737,7 +737,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
             try {
                 service.login();
             } catch (RequestException e) {
-                geyser.getLogger().error("Error while attempting to use refresh token for " + name() + "!", e);
+                geyser.getLogger().error("Error while attempting to use refresh token for " + bedrockUsername() + "!", e);
                 return Boolean.FALSE;
             }
 
@@ -749,7 +749,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
             }
 
             protocol = new MinecraftProtocol(profile, service.getAccessToken());
-            geyser.saveRefreshToken(name(), service.getRefreshToken());
+            geyser.saveRefreshToken(bedrockUsername(), service.getRefreshToken());
             return Boolean.TRUE;
         }).whenComplete((successful, ex) -> {
             if (this.closed) {
@@ -840,7 +840,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
                 connectDownstream();
 
                 // Save our refresh token for later use
-                geyser.saveRefreshToken(name(), service.getRefreshToken());
+                geyser.saveRefreshToken(bedrockUsername(), service.getRefreshToken());
                 return true;
             }
         }
@@ -1073,7 +1073,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
             try {
                 runnable.run();
             } catch (Throwable e) {
-                geyser.getLogger().error("Error thrown in " + this.name() + "'s event loop!", e);
+                geyser.getLogger().error("Error thrown in " + this.bedrockUsername() + "'s event loop!", e);
             }
         });
     }
@@ -1086,7 +1086,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
             try {
                 runnable.run();
             } catch (Throwable e) {
-                geyser.getLogger().error("Error thrown in " + this.name() + "'s event loop!", e);
+                geyser.getLogger().error("Error thrown in " + this.bedrockUsername() + "'s event loop!", e);
             }
         }, duration, timeUnit);
     }
@@ -1329,32 +1329,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
 
     @Override
     public String name() {
-        return authData.name();
-    }
-
-    @Override
-    public UUID uuid() {
-        return authData.uuid();
-    }
-
-    @Override
-    public String xuid() {
-        return authData.xuid();
-    }
-
-    @SuppressWarnings("ConstantConditions") // Need to enforce the parameter annotations
-    @Override
-    public boolean transfer(@NonNull String address, @IntRange(from = 0, to = 65535) int port) {
-        if (address == null || address.isBlank()) {
-            throw new IllegalArgumentException("Server address cannot be null or blank");
-        } else if (port < 0 || port > 65535) {
-            throw new IllegalArgumentException("Server port must be between 0 and 65535, was " + port);
-        }
-        TransferPacket transferPacket = new TransferPacket();
-        transferPacket.setAddress(address);
-        transferPacket.setPort(port);
-        sendUpstreamPacket(transferPacket);
-        return true;
+        return null;
     }
 
     @Override
@@ -1384,14 +1359,14 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
      * Sends a chat message to the Java server.
      */
     public void sendChat(String message) {
-        sendDownstreamPacket(new ServerboundChatPacket(message, Instant.now().toEpochMilli(), 0L, ByteArrays.EMPTY_ARRAY, false));
+        sendDownstreamPacket(new ServerboundChatPacket(message, Instant.now().toEpochMilli(), 0L, ByteArrays.EMPTY_ARRAY, false, Collections.emptyList(), null));
     }
 
     /**
      * Sends a command to the Java server.
      */
     public void sendCommand(String command) {
-        sendDownstreamPacket(new ServerboundChatCommandPacket(command, Instant.now().toEpochMilli(), 0L, Collections.emptyMap(), false));
+        sendDownstreamPacket(new ServerboundChatCommandPacket(command, Instant.now().toEpochMilli(), 0L, Collections.emptyList(), false, Collections.emptyList(), null));
     }
 
     public void setServerRenderDistance(int renderDistance) {
@@ -1407,12 +1382,14 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
         return this.upstream.getAddress();
     }
 
-    public void sendForm(Form form) {
+    public boolean sendForm(@NonNull Form form) {
         formCache.showForm(form);
+        return true;
     }
 
-    public void sendForm(FormBuilder<?, ?, ?> formBuilder) {
+    public boolean sendForm(@NonNull FormBuilder<?, ?, ?> formBuilder) {
         formCache.showForm(formBuilder.build());
+        return true;
     }
 
     /**
@@ -1495,6 +1472,8 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
 
         startGamePacket.setPlayerPropertyData(NbtMap.EMPTY);
         startGamePacket.setWorldTemplateId(UUID.randomUUID());
+
+        startGamePacket.setChatRestrictionLevel(ChatRestrictionLevel.NONE);
 
         SyncedPlayerMovementSettings settings = new SyncedPlayerMovementSettings();
         settings.setMovementMode(AuthoritativeMovementMode.CLIENT);
@@ -1679,6 +1658,13 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
                 abilities.add(Ability.INSTABUILD);
             }
 
+            if (commandPermission == CommandPermission.OPERATOR) {
+                // Fixes a bug? since 1.19.11 where the player can change their gamemode in Bedrock settings and
+                // a packet is not sent to the server.
+                // https://github.com/GeyserMC/Geyser/issues/3191
+                abilities.add(Ability.OPERATOR_COMMANDS);
+            }
+
             if (flying || spectator) {
                 if (spectator && !flying) {
                     // We're "flying locked" in this gamemode
@@ -1695,7 +1681,8 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
 
             abilityLayer.setLayerType(AbilityLayer.Type.BASE);
             abilityLayer.setFlySpeed(flySpeed);
-            abilityLayer.setWalkSpeed(walkSpeed);
+            // https://github.com/GeyserMC/Geyser/issues/3139 as of 1.19.10
+            abilityLayer.setWalkSpeed(walkSpeed == 0f ? 0.01f : walkSpeed);
             Collections.addAll(abilityLayer.getAbilitiesSet(), USED_ABILITIES);
 
             updateAbilitiesPacket.getAbilityLayers().add(abilityLayer);
@@ -1762,7 +1749,7 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
      *
      * @param statistics Updated statistics values
      */
-    public void updateStatistics(@Nonnull Object2IntMap<Statistic> statistics) {
+    public void updateStatistics(@NonNull Object2IntMap<Statistic> statistics) {
         if (this.statistics.isEmpty()) {
             // Initialize custom statistics to 0, so that they appear in the form
             for (CustomStatistic customStatistic : CustomStatistic.values()) {
@@ -1847,5 +1834,70 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
 
     public MinecraftCodecHelper getCodecHelper() {
         return (MinecraftCodecHelper) this.downstream.getCodecHelper();
+    }
+
+    @Override
+    public String bedrockUsername() {
+        return authData.name();
+    }
+
+    @Override
+    public @MonotonicNonNull String javaUsername() {
+        return playerEntity.getUsername();
+    }
+
+    @Override
+    public UUID javaUuid() {
+        return playerEntity.getUuid();
+    }
+
+    @Override
+    public String xuid() {
+        return authData.xuid();
+    }
+
+    @Override
+    public @NonNull String version() {
+        return clientData.getGameVersion();
+    }
+
+    @Override
+    public @NonNull BedrockPlatform platform() {
+        return BedrockPlatform.values()[clientData.getDeviceOs().ordinal()]; //todo
+    }
+
+    @Override
+    public @NonNull String languageCode() {
+        return locale();
+    }
+
+    @Override
+    public @NonNull UiProfile uiProfile() {
+        return UiProfile.values()[clientData.getUiProfile().ordinal()]; //todo
+    }
+
+    @Override
+    public @NonNull InputMode inputMode() {
+        return InputMode.values()[clientData.getCurrentInputMode().ordinal()]; //todo
+    }
+
+    @Override
+    public boolean isLinked() {
+        return false; //todo
+    }
+
+    @SuppressWarnings("ConstantConditions") // Need to enforce the parameter annotations
+    @Override
+    public boolean transfer(@NonNull String address, @IntRange(from = 0, to = 65535) int port) {
+        if (address == null || address.isBlank()) {
+            throw new IllegalArgumentException("Server address cannot be null or blank");
+        } else if (port < 0 || port > 65535) {
+            throw new IllegalArgumentException("Server port must be between 0 and 65535, was " + port);
+        }
+        TransferPacket transferPacket = new TransferPacket();
+        transferPacket.setAddress(address);
+        transferPacket.setPort(port);
+        sendUpstreamPacket(transferPacket);
+        return true;
     }
 }

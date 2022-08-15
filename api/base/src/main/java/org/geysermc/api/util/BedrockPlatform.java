@@ -23,60 +23,48 @@
  * @link https://github.com/GeyserMC/Geyser
  */
 
-package org.geysermc.geyser.api.event;
+package org.geysermc.api.util;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.geysermc.geyser.api.extension.Extension;
+public enum BedrockPlatform {
+    UNKNOWN("Unknown"),
+    GOOGLE("Android"),
+    IOS("iOS"),
+    OSX("macOS"),
+    AMAZON("Amazon"),
+    GEARVR("Gear VR"),
+    HOLOLENS("Hololens"),
+    UWP("Windows 10"),
+    WIN32("Windows x86"),
+    DEDICATED("Dedicated"),
+    TVOS("Apple TV"),
+    PS4("PS4"),
+    NX("Switch"),
+    XBOX("Xbox One"),
+    WINDOWS_PHONE("Windows Phone");
 
-/**
- * Represents a subscribed listener to a {@link Event}. Wraps around
- * the event and is capable of unsubscribing from the event or give
- * information about it.
- *
- * @param <T> the class of the event
- */
-public interface EventSubscription<T extends Event> {
+    private static final BedrockPlatform[] VALUES = values();
+
+    private final String displayName;
+
+    BedrockPlatform(String displayName) {
+        this.displayName = displayName;
+    }
 
     /**
-     * Gets the event class.
+     * Get the BedrockPlatform from the identifier.
      *
-     * @return the event class
+     * @param id the BedrockPlatform identifier
+     * @return The BedrockPlatform or {@link #UNKNOWN} if the platform wasn't found
      */
-    @NonNull
-    Class<T> eventClass();
+    public static BedrockPlatform fromId(int id) {
+        return id < VALUES.length ? VALUES[id] : VALUES[0];
+    }
 
     /**
-     * Gets the {@link Extension} that owns this
-     * event subscription.
-     *
-     * @return the extension that owns this subscription
+     * @return friendly display name of platform.
      */
-    @NonNull
-    Extension owner();
-
-    /**
-     * Gets the post order of this event subscription.
-     *
-     * @return the post order of this event subscription
-     */
-    Subscribe.PostOrder order();
-
-    /**
-     * Gets if this event subscription is active.
-     *
-     * @return if this event subscription is active
-     */
-    boolean isActive();
-
-    /**
-     * Unsubscribes from this event listener
-     */
-    void unsubscribe();
-
-    /**
-     * Invokes the given event
-     *
-     * @param event the event
-     */
-    void invoke(@NonNull T event) throws Throwable;
+    @Override
+    public String toString() {
+        return displayName;
+    }
 }

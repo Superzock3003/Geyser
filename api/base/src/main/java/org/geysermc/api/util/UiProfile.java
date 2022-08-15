@@ -23,19 +23,20 @@
  * @link https://github.com/GeyserMC/Geyser
  */
 
-package org.geysermc.geyser.api.event;
+package org.geysermc.api.util;
 
-/**
- * Represents an event.
- */
-public interface Event {
+public enum UiProfile {
+    CLASSIC, POCKET;
+
+    private static final UiProfile[] VALUES = values();
 
     /**
-     * Gets if the event is async.
+     * Get the UiProfile from the identifier.
      *
-     * @return if the event is async
+     * @param id the UiProfile identifier
+     * @return The UiProfile or {@link #CLASSIC} if the profile wasn't found
      */
-    default boolean isAsync() {
-        return false;
+    public static UiProfile fromId(int id) {
+        return VALUES.length > id ? VALUES[id] : VALUES[0];
     }
 }

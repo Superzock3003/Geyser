@@ -23,29 +23,24 @@
  * @link https://github.com/GeyserMC/Geyser
  */
 
-package org.geysermc.geyser.api.event.connection;
+package org.geysermc.api.util;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.geysermc.event.Event;
-import org.geysermc.geyser.api.connection.GeyserConnection;
+public enum InputMode {
+    UNKNOWN,
+    KEYBOARD_MOUSE,
+    TOUCH,
+    CONTROLLER,
+    VR;
 
-/**
- * An event that contains a {@link GeyserConnection}.
- */
-public abstract class ConnectionEvent implements Event {
-    private final GeyserConnection connection;
-
-    public ConnectionEvent(@NonNull GeyserConnection connection) {
-        this.connection = connection;
-    }
+    private static final InputMode[] VALUES = values();
 
     /**
-     * Gets the {@link GeyserConnection}.
+     * Get the InputMode from the identifier.
      *
-     * @return the connection
+     * @param id the InputMode identifier
+     * @return The InputMode or {@link #UNKNOWN} if the mode wasn't found
      */
-    @NonNull
-    public GeyserConnection connection() {
-        return this.connection;
+    public static InputMode fromId(int id) {
+        return VALUES.length > id ? VALUES[id] : VALUES[0];
     }
 }

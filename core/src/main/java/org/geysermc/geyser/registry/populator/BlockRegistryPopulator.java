@@ -34,6 +34,7 @@ import com.nukkitx.protocol.bedrock.v527.Bedrock_v527;
 import com.nukkitx.protocol.bedrock.v534.Bedrock_v534;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import com.nukkitx.protocol.bedrock.v544.Bedrock_v544;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.*;
@@ -78,6 +79,9 @@ public class BlockRegistryPopulator {
 
         BLOCK_MAPPERS = stateMapperBuilder.build();
     }
+
+    private static final ImmutableMap<ObjectIntPair<String>, BiFunction<String, NbtMapBuilder, String>> BLOCK_MAPPERS;
+    private static final BiFunction<String, NbtMapBuilder, String> EMPTY_MAPPER = (bedrockIdentifier, statesBuilder) -> null;
 
     /**
      * Stores the raw blocks JSON until it is no longer needed.
@@ -198,10 +202,20 @@ public class BlockRegistryPopulator {
     }
 
     private static void registerBedrockBlocks() {
+        BiFunction<String, NbtMapBuilder, String> emptyMapper = (bedrockIdentifier, statesBuilder) -> null;
+        ImmutableMap<ObjectIntPair<String>, BiFunction<String, NbtMapBuilder, String>> blockMappers = ImmutableMap.<ObjectIntPair<String>, BiFunction<String, NbtMapBuilder, String>>builder()
+                .put(ObjectIntPair.of("1_19_0", Bedrock_v527.V527_CODEC.getProtocolVersion()), (bedrockIdentifier, statesBuilder) -> {
+                    if (bedrockIdentifier.equals("minecraft:muddy_mangrove_roots")) {
+                        statesBuilder.remove("pillar_axis");
+                    }
+                    return null;
+                }
+                .put(ObjectIntPair.of("1_19_20", Bedrock_v544.V544_CODEC.getProtocolVersion()), emptyMapper).build();
+
+
         for (Map.Entry<ObjectIntPair<String>, BiFunction<String, NbtMapBuilder, String>> palette : BLOCK_MAPPERS.entrySet()) {
             BiFunction<String, NbtMapBuilder, String> stateMapper = palette.getValue();
             int protocolVersion = palette.getKey().valueInt();
-
             NbtList<NbtMap> blocksTag;
             List<NbtMap> blockStates;
             try (InputStream stream = GeyserImpl.getInstance().getBootstrap().getResource(String.format("bedrock/block_palette.%s.nbt", palette.getKey().key()));
@@ -232,9 +246,13 @@ public class BlockRegistryPopulator {
 
             // New since 1.16.100 - find the block runtime ID by the order given to us in the block palette,
             // as we no longer send a block palette
-            Object2IntMap<NbtMap> blockStateOrderedMap = new Object2IntOpenHashMap<>(blockStates.size());
-            for (int i = 0; i < blockStates.size(); i++) {
-                NbtMap tag = blockStates.get(i);
+            Object2IntMap<NbtMap> blockStateOrderedMap = new Object2IntOpenHashMap<>(blocksTag.size());
+
+            int stateVersion = -1;
+            for (int i = 0; i < blocksStates.size(); i++) {
+                NbtMapBuilder builder = blocksStates.get(i).toBuilder();
+                builder.remove("name_hash"); // Quick workaround - was added in 1.19.20
+                NbtMap tag = builder.build();
                 if (blockStateOrderedMap.containsKey(tag)) {
                     throw new AssertionError("Duplicate block states in Bedrock palette: " + tag);
                 }
