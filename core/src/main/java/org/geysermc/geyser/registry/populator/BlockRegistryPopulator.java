@@ -75,7 +75,8 @@ public class BlockRegistryPopulator {
     static {
         ImmutableMap.Builder<ObjectIntPair<String>, BiFunction<String, NbtMapBuilder, String>> stateMapperBuilder = ImmutableMap.<ObjectIntPair<String>, BiFunction<String, NbtMapBuilder, String>>builder()
                 .put(ObjectIntPair.of("1_19_0", Bedrock_v527.V527_CODEC.getProtocolVersion()), EMPTY_MAPPER)
-                .put(ObjectIntPair.of("1_19_0", Bedrock_v534.V534_CODEC.getProtocolVersion()), EMPTY_MAPPER); // Block palette hasn't changed, but the custom block nbt format has changed
+                .put(ObjectIntPair.of("1_19_0", Bedrock_v534.V534_CODEC.getProtocolVersion()), EMPTY_MAPPER)
+                .put(ObjectIntPair.of("1_19_20", Bedrock_v544.V544_CODEC.getProtocolVersion()), EMPTY_MAPPER); // Block palette hasn't changed, but the custom block nbt format has changed
 
         BLOCK_MAPPERS = stateMapperBuilder.build();
     }
@@ -209,7 +210,7 @@ public class BlockRegistryPopulator {
                         statesBuilder.remove("pillar_axis");
                     }
                     return null;
-                }
+                })
                 .put(ObjectIntPair.of("1_19_20", Bedrock_v544.V544_CODEC.getProtocolVersion()), emptyMapper).build();
 
 
